@@ -51,16 +51,27 @@ MSG
     fi
 fi
 
-# X11 authority. Under GNOME/Wayland, XWayland's cookie lives in the runtime
-# dir (/run/user/<uid>/.mutter-Xwaylandauth.*), not ~/.Xauthority, and the
-# container cannot read it unless we mount it explicitly.
+# X11 authority. RHEL 10's GNOME session is Wayland-only (no Xorg login
+# option), so ~/.Xauthority never gets created. XWayland's own cookie lives
+# in the runtime dir instead (.mutter-Xwaylandauth.<hash> under
+# $XDG_RUNTIME_DIR), and $XAUTHORITY usually isn't exported for a Wayland
+# login at all -- so the old "${XAUTHORITY:-$HOME/.Xauthority}" fallback
+# found nothing and silently ran with no auth cookie mounted at all.
 X_OPTS=""
-XAUTH="${XAUTHORITY:-$HOME/.Xauthority}"
+XAUTH="$XAUTHORITY"
+[ -z "$XAUTH" ] && XAUTH=$(ls -t "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"/.mutter-Xwaylandauth.* 2>/dev/null | head -n1)
+[ -z "$XAUTH" ] && [ -r "$HOME/.Xauthority" ] && XAUTH="$HOME/.Xauthority"
+
 if [ -n "$DISPLAY" ]; then
-    X_OPTS="-e DISPLAY=$DISPLAY"
+    # SELinux blocks the container from reading /tmp/.X11-unix by default
+    # on RHEL; label=disable skips relabeling instead of trying to give the
+    # host's X socket a container-friendly context.
+    X_OPTS="-e DISPLAY=$DISPLAY --security-opt label=disable"
     [ -d /tmp/.X11-unix ] && X_OPTS="$X_OPTS -v /tmp/.X11-unix:/tmp/.X11-unix:ro"
-    if [ -r "$XAUTH" ]; then
+    if [ -n "$XAUTH" ] && [ -r "$XAUTH" ]; then
         X_OPTS="$X_OPTS -e XAUTHORITY=/tmp/.Xauth -v $XAUTH:/tmp/.Xauth:ro"
+    else
+        echo "foam: no readable X authority file found (checked \$XAUTHORITY, \$XDG_RUNTIME_DIR/.mutter-Xwaylandauth.*, ~/.Xauthority) -- GUI apps will likely fail to connect to the display." >&2
     fi
 fi
 
