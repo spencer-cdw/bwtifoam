@@ -28,7 +28,7 @@ fi
 #              range instead and files would come out owned by a stranger.
 #
 if [ "$($PODMAN info --format '{{.Host.Security.Rootless}}' 2>/dev/null)" = true ]; then
-    USER_OPTS="--userns=keep-id:uid=98675,gid=98765"
+    USER_OPTS="--userns=keep-id:uid=98765,gid=98765"
     MODE=rootless
 else
     USER_OPTS="--user $(id -u):$(id -g)"
