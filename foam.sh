@@ -19,16 +19,8 @@ else
     PODMAN="sudo podman"
 fi
 
-# Rootless and rootful need different user handling, and getting it wrong
-# silently corrupts file ownership on the case directory:
-#
-#   rootful  — the container would run as real root, so pin it to our UID.
-#   rootless — podman already maps us into the container; keep-id lines the
-#              two up. Adding --user here would map into the subordinate
-#              range instead and files would come out owned by a stranger.
-#
 if [ "$($PODMAN info --format '{{.Host.Security.Rootless}}' 2>/dev/null)" = true ]; then
-    USER_OPTS="--userns=keep-id:uid=98765,gid=98765"
+    USER_OPTS="--user root"
     MODE=rootless
 else
     USER_OPTS="--user $(id -u):$(id -g)"
@@ -56,6 +48,19 @@ or point somewhere you own (good for testing):
 
 MSG
         exit 1
+    fi
+fi
+
+# X11 authority. Under GNOME/Wayland, XWayland's cookie lives in the runtime
+# dir (/run/user/<uid>/.mutter-Xwaylandauth.*), not ~/.Xauthority, and the
+# container cannot read it unless we mount it explicitly.
+X_OPTS=""
+XAUTH="${XAUTHORITY:-$HOME/.Xauthority}"
+if [ -n "$DISPLAY" ]; then
+    X_OPTS="-e DISPLAY=$DISPLAY"
+    [ -d /tmp/.X11-unix ] && X_OPTS="$X_OPTS -v /tmp/.X11-unix:/tmp/.X11-unix:ro"
+    if [ -r "$XAUTH" ]; then
+        X_OPTS="$X_OPTS -e XAUTHORITY=/tmp/.Xauth -v $XAUTH:/tmp/.Xauth:ro"
     fi
 fi
 
@@ -106,8 +111,7 @@ INIT='for f in /opt/openfoam*/etc/bashrc; do [ -f "$f" ] && . "$f"; done; exec b
 exec $PODMAN run --rm -it \
     $USER_OPTS \
     -v "$CASES":/home/openfoam:z \
-    -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
-    -e DISPLAY="$DISPLAY" \
     -e HOME=/home/openfoam \
+    $X_OPTS \
     $MOUNT_OPTS \
     "$IMAGE" bash -c "$INIT"
