@@ -19,6 +19,12 @@ else
     PODMAN="sudo podman"
 fi
 
+# Force the cgroupfs manager for this invocation rather than requiring a
+# one-time ~/.config/containers/containers.conf edit during install. Rootless
+# podman defaults to the systemd cgroup manager, which needs a fully working
+# systemd --user session; cgroupfs has no such dependency.
+PODMAN="$PODMAN --cgroup-manager=cgroupfs"
+
 if [ "$($PODMAN info --format '{{.Host.Security.Rootless}}' 2>/dev/null)" = true ]; then
     USER_OPTS="--user root"
     MODE=rootless

@@ -38,6 +38,11 @@ else
     PODMAN="sudo podman"
 fi
 
+# Force the cgroupfs manager for this invocation rather than requiring a
+# one-time ~/.config/containers/containers.conf edit during install. See
+# foam.sh for the full explanation.
+PODMAN="$PODMAN --cgroup-manager=cgroupfs"
+
 # Rootless and rootful need different handling on two counts: how the
 # container user is mapped, and whether systemd-run can create a system unit.
 if [ "$($PODMAN info --format '{{.Host.Security.Rootless}}' 2>/dev/null)" = true ]; then
@@ -75,7 +80,7 @@ $SUDO systemd-run $RUN_SCOPE \
     --property=CPUQuota="$CPUS" \
     --property=Restart=no \
     --collect \
-    podman run --rm --name "$UNIT" \
+    podman --cgroup-manager=cgroupfs run --rm --name "$UNIT" \
         $USER_OPTS \
         -v "$CASES":/home/openfoam:z \
         -e HOME=/home/openfoam \
