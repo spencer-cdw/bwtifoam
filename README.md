@@ -2,11 +2,73 @@
 This repo provides a script to automate spinning up openfoam using podman
 
 
+## Installation
+
+Prerequisites
+
+- git
+- podman
+
+Install with git
+```bash
+cd ~/Desktop
+git clone https://github.com/spencer-cdw/bwtifoam.git
+cd bwtifoam
+sudo ./setup.sh
+```
+
+## Updating
+Because everything is managed with podman, updating is as simple as edting the install.sh or modifying a variable
+
+```bash
+cd ~/Desktop/bwtifoam
+git pull
+```
+
+## Running OpenFoam
+Openfoam runs inside a docker container (podman)
+The docker container has a mapping to the host. To import code into openfoam the mapped directory
+
+| Host | Container |
+| --- | --- | 
+| /opt/foam/cases | /home/openfoam |
+
+```bash
+cd ~/Desktop/bwtifoam
+./foam.sh
+```
+
+### Copying code
+Any code you want to test inside the docker (podman) container should be copied to /opt/foam/cases first. It will then be available at /home/openfoam as soon as the openfoam shell starts. 
+
+```bash
+cp foobar /opt/foam/cases
+~/Desktop/bwtifoam/foam.sh
+ls /home/openfoam
+```
+
+## Testing
+
+```bash
+cd ~/Desktop/bwtifoam
+./foam.sh
+mkdir -p $FOAM_RUN
+cd $FOAM_RUN
+cp -r $FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily .
+cd pitzDaily
+blockMesh
+simpleFoam
+paraFoam
+```
+
 ## Why 
 
 openfoam can't be installed on rhel 9/10 due to package renaming
 
 https://gitlab.com/openfoam/core/openfoam/-/wikis/precompiled#package-structure-rpm-partly-debianubuntu
+
+The official docker installation was designed for containerd 
+openfoam9 [script for centos 6/7](https://openfoam.org/download/9-linux/) no longer works on rhel 9/10
 
 ## Other Considerations
 
